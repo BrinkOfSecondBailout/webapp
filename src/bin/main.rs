@@ -14,11 +14,15 @@ fn handle_connection(mut stream: TcpStream) {
     let mut buffer = [0; 1024];
     let get = "GET / HTTP/1.1".as_bytes();
     let sleep = "GET /sleep HTTP/1.1".as_bytes();
+    let sleep_10 = "GET /sleep10 HTTP/1.1".as_bytes();
     stream.read(&mut buffer).unwrap();
     let (status, filename) = if buffer.starts_with(get) {
         ("HTTP/1.1 200 OK", "index.html")
     } else if buffer.starts_with(sleep) {
         thread::sleep(Duration::from_secs(5));
+        ("HTTP/1.1 200 OK", "index.html")
+    } else if buffer.starts_with(sleep_10) {
+        thread::sleep(Duration::from_secs(10));
         ("HTTP/1.1 200 OK", "index.html")
     } else {
         ("HTTP/1.1 404 Not Found", "404.html")
