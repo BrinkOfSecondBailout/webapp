@@ -1,54 +1,22 @@
 use std::{
     sync::{
         Arc, Mutex,
-        mpsc::{self, Receiver},
+        mpsc::{self, Receiver, Sender},
     },
-    thread::{self, Thread},
+    thread::{self, JoinHandle},
 };
 
-pub struct ThreadPool {
-    workers: Vec<Worker>,
-    sender: mpsc::Sender<Message>,
-}
-
-struct Worker {
-    id: usize,
-    thread: Option<thread::JoinHandle<()>>,
-}
+type Job = Box<dyn FnOnce() + Send + 'static>;
 
 enum Message {
     NewJob(Job),
     Terminate,
 }
 
-impl Worker {
-    fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Message>>>) -> Worker {
-        let thread = thread::spawn(move || {
-            loop {
-                println!("Worker {} spawned a new thread, waiting for a job...", id);
-                let message = receiver.lock().unwrap().recv().unwrap();
-
-                match message {
-                    Message::NewJob(job) => {
-                        println!("Worker {} got a job; Executing.", id);
-                        job();
-                        println!("Worker {} finished executing.", id);
-                    }
-                    Message::Terminate => {
-                        println!("Terminating worker {}.", id);
-                        break;
-                    }
-                }
-            }
-        });
-        Worker {
-            id,
-            thread: Some(thread),
-        }
-    }
+pub struct ThreadPool {
+    workers: Vec<Worker>,
+    sender: mpsc::Sender<Message>,
 }
-
-type Job = Box<dyn FnOnce() + Send + 'static>;
 
 impl ThreadPool {
     pub fn new(size: usize) -> ThreadPool {
@@ -59,7 +27,6 @@ impl ThreadPool {
         for id in 0..size {
             workers.push(Worker::new(id, Arc::clone(&receiver)));
         }
-
         ThreadPool { workers, sender }
     }
 
@@ -74,7 +41,6 @@ impl ThreadPool {
 
 impl Drop for ThreadPool {
     fn drop(&mut self) {
-        println!("Sending terminate message to all workers.");
         for _ in &self.workers {
             self.sender.send(Message::Terminate).unwrap();
         }
@@ -84,6 +50,36 @@ impl Drop for ThreadPool {
             if let Some(thread) = worker.thread.take() {
                 thread.join().unwrap();
             }
+        }
+    }
+}
+
+struct Worker {
+    id: usize,
+    thread: Option<thread::JoinHandle<()>>,
+}
+
+impl Worker {
+    fn new(id: usize, receiver: Arc<Mutex<Receiver<Message>>>) -> Worker {
+        let thread = thread::spawn(move || {
+            loop {
+                let message: Message = receiver.lock().unwrap().recv().unwrap();
+                match message {
+                    Message::NewJob(job) => {
+                        println!("Worker {} got assigned a new job. Executing.", id);
+                        job();
+                        println!("Worker {} finished job.", id);
+                    }
+                    Message::Terminate => {
+                        println!("Shutting down worker {}", id);
+                        break;
+                    }
+                }
+            }
+        });
+        Worker {
+            id,
+            thread: Some(thread),
         }
     }
 }

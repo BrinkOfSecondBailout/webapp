@@ -1,8 +1,8 @@
 use std::{
-    fs,
+    fs::{self, File},
     io::{Read, Write},
     net::{TcpListener, TcpStream},
-    thread,
+    thread::{self, sleep},
     time::Duration,
 };
 
@@ -11,17 +11,18 @@ use webapp_r::ThreadPool;
 const LOCAL_HOST: &str = "127.0.0.1:7878";
 
 fn handle_connection(mut stream: TcpStream) {
-    let mut buffer = [0; 1024];
     let get = "GET / HTTP/1.1".as_bytes();
     let sleep = "GET /sleep HTTP/1.1".as_bytes();
-    let sleep_10 = "GET /sleep10 HTTP/1.1".as_bytes();
+    let sleep_long = "GET /sleep_long HTTP/1.1".as_bytes();
+
+    let mut buffer: [u8; 1024] = [0; 1024];
     stream.read(&mut buffer).unwrap();
     let (status, filename) = if buffer.starts_with(get) {
         ("HTTP/1.1 200 OK", "index.html")
     } else if buffer.starts_with(sleep) {
         thread::sleep(Duration::from_secs(5));
         ("HTTP/1.1 200 OK", "index.html")
-    } else if buffer.starts_with(sleep_10) {
+    } else if buffer.starts_with(sleep_long) {
         thread::sleep(Duration::from_secs(10));
         ("HTTP/1.1 200 OK", "index.html")
     } else {
@@ -34,18 +35,18 @@ fn handle_connection(mut stream: TcpStream) {
         contents.len(),
         contents
     );
-
     stream.write(response.as_bytes()).unwrap();
     stream.flush().unwrap();
+    println!("Finished writing to stream");
 }
+
 fn main() {
+    let pool = ThreadPool::new(4);
     let listener = TcpListener::bind(LOCAL_HOST).unwrap();
     println!("Listening on {}", LOCAL_HOST);
-    let pool = ThreadPool::new(4);
-    for stream in listener.incoming() {
-        println!("Incoming connection!");
+    for stream in listener.incoming().take(2) {
+        println!("Incoming...");
         let stream = stream.unwrap();
-        // handle_connection(stream);
         pool.execute(|| handle_connection(stream));
     }
 }
