@@ -4,7 +4,7 @@ A simple web application built with Rust, demonstrating basic server functionali
 
 ## Full Live Coding Video
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/vL1_1LjVRgo?si=C59fDyZBLa_7JrxG" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+[![Watch Me Code Live]](https://youtu.be/vL1_1LjVRgo?si=wfhmmFcNbKDM8hxF)
 
 ## Getting Started
 
